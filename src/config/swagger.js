@@ -1,33 +1,36 @@
-import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerJsdoc from "swagger-jsdoc";
 
 const options = {
   definition: {
-    openapi: '3.0.0',
+    openapi: "3.0.0",
 
     info: {
-      title: 'TaskFlow API',
-      version: '1.0.0',
-      description: 'API para gestión de tareas',
+      title: "TaskFlow API",
+      version: "1.0.0",
+      description: "API para gestión de tareas",
     },
 
     servers: [
       {
-        url: 'http://localhost:3000',
+        url:
+          process.env.NODE_ENV === "production"
+            ? "https://daniel-flores.onrender.com"
+            : "http://localhost:3000",
       },
     ],
 
     components: {
       securitySchemes: {
         bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
         },
       },
     },
   },
 
-  apis: ['./src/routes/*.js'],
+  apis: ["./src/routes/*.js"],
 };
 
 const swaggerSpec = swaggerJsdoc(options);
