@@ -1,353 +1,554 @@
-# 📋 TaskFlow API
+# TaskFlow API
 
-API REST para gestión de tareas construida con **Express 5** y **PostgreSQL**. Permite a los usuarios registrarse, autenticarse y administrar sus tareas personales con operaciones CRUD completas.
+API REST para la gestión de usuarios, proyectos y tareas, desarrollada con **Node.js, Express y PostgreSQL**.
 
-> **💡 Nota:** Este proyecto tiene fines **estrictamente didácticos**. Fue creado como un ejemplo educativo paso a paso para explicar y aprender cómo construir una API moderna y estructurada con Node.js, Express 5, Sequelize y PostgreSQL siguiendo buenas prácticas (arquitectura en capas, middlewares, manejo de errores, etc.).
+El proyecto implementa autenticación mediante **JWT**, persistencia de datos utilizando **Sequelize ORM**, validación de solicitudes, documentación interactiva mediante **Swagger** y despliegue en **Render**.
 
-## 📑 Tabla de Contenidos
+---
 
-- [📋 TaskFlow API](#-taskflow-api)
-  - [📑 Tabla de Contenidos](#-tabla-de-contenidos)
-  - [🏗 Arquitectura](#-arquitectura)
-    - [Diagrama de Arquitectura](#diagrama-de-arquitectura)
-  - [🛠 Tecnologías](#-tecnologías)
-  - [📁 Estructura del Proyecto](#-estructura-del-proyecto)
-  - [📌 Requisitos Previos](#-requisitos-previos)
-  - [🚀 Instalación](#-instalación)
-  - [🔐 Variables de Entorno](#-variables-de-entorno)
-  - [📜 Scripts Disponibles](#-scripts-disponibles)
-  - [📡 Endpoints de la API](#-endpoints-de-la-api)
-    - [Autenticación (`/auth`)](#autenticación-auth)
-    - [Tareas (`/tasks`)](#tareas-tasks)
-    - [Otros](#otros)
-    - [Ejemplos de uso](#ejemplos-de-uso)
-  - [📖 Documentación Swagger](#-documentación-swagger)
-  - [🗄 Modelos de Datos](#-modelos-de-datos)
-    - [User](#user)
-    - [Task](#task)
-    - [Relaciones](#relaciones)
-  - [👤 Autor](#-autor)
+## 🚀 Demo
 
-## 🏗 Arquitectura
+**API desplegada:**
 
-El proyecto sigue una **arquitectura en capas** (Layered Architecture), separando responsabilidades en capas bien definidas:
+https://daniel-flores.onrender.com
 
-```
-Request → Routes → Middlewares → Controllers → Services → Repositories → Database
-```
+**Documentación Swagger:**
 
-| Capa             | Responsabilidad                                                                |
-| ---------------- | ------------------------------------------------------------------------------ |
-| **Routes**       | Define los endpoints y asocia middlewares y controladores                      |
-| **Middlewares**  | Autenticación (JWT), validación de datos y manejo global de errores            |
-| **Controllers**  | Recibe las peticiones HTTP, delega la lógica al servicio y devuelve respuestas |
-| **Services**     | Contiene la lógica de negocio                                                  |
-| **Repositories** | Capa de acceso a datos, interactúa directamente con los modelos de Sequelize   |
-| **Entities**     | Definición de los modelos ORM (Sequelize) y sus asociaciones                   |
+https://daniel-flores.onrender.com/api-docs
 
-### Diagrama de Arquitectura
+> La API requiere autenticación mediante Bearer Token para acceder a los recursos protegidos.
 
-```
-┌─────────────────────────────────────────────────────┐
-│                      Cliente                        │
-└─────────────────┬───────────────────────────────────┘
-                  │ HTTP Request
-                  ▼
-┌─────────────────────────────────────────────────────┐
-│                   Express App                       │
-│  ┌───────────┐  ┌────────┐  ┌────────────────────┐  │
-│  │   CORS    │  │ Helmet │  │   Swagger UI       │  │
-│  └───────────┘  └────────┘  └────────────────────┘  │
-└─────────────────┬───────────────────────────────────┘
-                  ▼
-┌─────────────────────────────────────────────────────┐
-│                     Routes                          │
-│         /auth (register, login)                     │
-│         /tasks (CRUD + complete)                    │
-└─────────────────┬───────────────────────────────────┘
-                  ▼
-┌─────────────────────────────────────────────────────┐
-│                   Middlewares                        │
-│  ┌──────────────┐ ┌────────────┐ ┌───────────────┐  │
-│  │ Autenticación│ │ Validación │ │ Manejo Errores│  │
-│  │    (JWT)     │ │  (express- │ │   (global)    │  │
-│  │              │ │  validator)│ │               │  │
-│  └──────────────┘ └────────────┘ └───────────────┘  │
-└─────────────────┬───────────────────────────────────┘
-                  ▼
-┌─────────────────────────────────────────────────────┐
-│                  Controllers                        │
-│       auth.controller  │  task.controller            │
-└─────────────────┬───────────────────────────────────┘
-                  ▼
-┌─────────────────────────────────────────────────────┐
-│                    Services                         │
-│        auth.service   │   task.service               │
-└─────────────────┬───────────────────────────────────┘
-                  ▼
-┌─────────────────────────────────────────────────────┐
-│                  Repositories                       │
-│       user.repository  │  task.repository            │
-└─────────────────┬───────────────────────────────────┘
-                  ▼
-┌─────────────────────────────────────────────────────┐
-│              Sequelize ORM (Entities)               │
-│          User  ──── 1:N ────  Task                  │
-└─────────────────┬───────────────────────────────────┘
-                  ▼
-┌─────────────────────────────────────────────────────┐
-│                   PostgreSQL                        │
-└─────────────────────────────────────────────────────┘
+---
+
+## 📋 Descripción
+
+TaskFlow API permite a los usuarios:
+
+- Registrarse e iniciar sesión.
+- Crear y administrar proyectos.
+- Asociar tareas a proyectos.
+- Consultar las tareas de un proyecto mediante paginación.
+- Crear, actualizar, completar y eliminar tareas.
+- Eliminar proyectos mediante **Soft Delete**.
+- Consultar un proyecto junto con sus tareas relacionadas.
+
+La estructura principal de relaciones es:
+
+```text
+User
+  │
+  │ 1:N
+  ▼
+Project
+  │
+  │ 1:N
+  ▼
+Task
 ```
 
-## 🛠 Tecnologías
+Un usuario puede tener múltiples proyectos y cada proyecto puede contener múltiples tareas.
 
-| Tecnología            | Versión | Descripción                             |
-| --------------------- | ------- | --------------------------------------- |
-| **Node.js**           | 18+     | Entorno de ejecución JavaScript         |
-| **Express**           | 5.x     | Framework web minimalista               |
-| **PostgreSQL**        | -       | Base de datos relacional                |
-| **Sequelize**         | 6.x     | ORM para Node.js                        |
-| **JSON Web Tokens**   | 9.x     | Autenticación basada en tokens          |
-| **bcrypt**            | 6.x     | Hashing de contraseñas                  |
-| **express-validator** | 7.x     | Validación y sanitización de datos      |
-| **Swagger/OpenAPI**   | 3.0     | Documentación interactiva de la API     |
-| **Pino**              | 10.x    | Logger de alto rendimiento              |
-| **Helmet**            | 8.x     | Headers de seguridad HTTP               |
-| **CORS**              | 2.x     | Manejo de Cross-Origin Resource Sharing |
-| **dotenv**            | 17.x    | Gestión de variables de entorno         |
-| **ESLint**            | 10.x    | Linter para JavaScript                  |
-| **Prettier**          | 3.x     | Formateo de código                      |
+---
 
-## 📁 Estructura del Proyecto
+## 🛠️ Tecnologías utilizadas
 
-```
-src/
-├── app.js                          # Configuración de Express (middlewares globales)
-├── server.js                       # Punto de entrada, conexión a DB e inicio del servidor
+| Tecnología        | Uso                                   |
+| ----------------- | ------------------------------------- |
+| Node.js           | Entorno de ejecución                  |
+| Express.js        | Framework para la API REST            |
+| PostgreSQL        | Base de datos relacional              |
+| Sequelize         | ORM para PostgreSQL                   |
+| JWT               | Autenticación y autorización          |
+| bcrypt            | Hash de contraseñas                   |
+| Swagger           | Documentación y pruebas de la API     |
+| express-validator | Validación de datos                   |
+| Helmet            | Seguridad HTTP                        |
+| CORS              | Control de solicitudes entre orígenes |
+| Morgan / Pino     | Logging                               |
+| Render            | Despliegue de la aplicación           |
+
+---
+
+## 📁 Estructura del proyecto
+
+```text
+taskflow-api/
 │
-├── config/
-│   ├── env.js                      # Variables de entorno centralizadas
-│   ├── jwt.js                      # Generación de tokens JWT
-│   ├── logger.js                   # Configuración de Pino logger
-│   └── swagger.js                  # Configuración de Swagger/OpenAPI
+├── src/
+│   ├── config/
+│   │   ├── env.js
+│   │   └── logger.js
+│   │
+│   ├── controllers/
+│   │   ├── auth.controller.js
+│   │   ├── project.controller.js
+│   │   └── task.controller.js
+│   │
+│   ├── database/
+│   │   └── sequelize.js
+│   │
+│   ├── entities/
+│   │   ├── user.entity.js
+│   │   ├── project.entity.js
+│   │   ├── task.entity.js
+│   │   └── index.js
+│   │
+│   ├── middlewares/
+│   │   ├── auth.middleware.js
+│   │   └── validation.middleware.js
+│   │
+│   ├── repositories/
+│   │   ├── user.repository.js
+│   │   ├── project.repository.js
+│   │   └── task.repository.js
+│   │
+│   ├── routes/
+│   │   ├── auth.routes.js
+│   │   ├── project.routes.js
+│   │   └── task.routes.js
+│   │
+│   ├── services/
+│   │   ├── auth.service.js
+│   │   ├── project.service.js
+│   │   └── task.service.js
+│   │
+│   ├── utils/
+│   │   ├── AppError.js
+│   │   └── response.js
+│   │
+│   ├── validators/
+│   │   └── common.validator.js
+│   │
+│   ├── app.js
+│   └── server.js
 │
-├── controllers/
-│   ├── auth.controller.js          # Controlador de autenticación
-│   └── task.controller.js          # Controlador de tareas
-│
-├── database/
-│   └── sequelize.js                # Instancia y conexión de Sequelize
-│
-├── entities/
-│   ├── index.js                    # Barrel de entidades y asociaciones
-│   ├── associations.js             # Relaciones entre modelos
-│   ├── user.entity.js              # Modelo User
-│   └── task.entity.js              # Modelo Task
-│
-├── middlewares/
-│   ├── auth.middleware.js          # Middleware de autenticación JWT
-│   ├── error.middleware.js         # Manejo global de errores
-│   └── validation.middleware.js    # Middleware de validación con express-validator
-│
-├── repositories/
-│   ├── user.repository.js          # Acceso a datos de usuarios
-│   └── task.repository.js          # Acceso a datos de tareas
-│
-├── routes/
-│   ├── index.routes.js             # Router principal (health check, subrutas)
-│   ├── auth.routes.js              # Rutas de autenticación
-│   └── task.routes.js              # Rutas de tareas
-│
-├── services/
-│   ├── auth.service.js             # Lógica de negocio de autenticación
-│   └── task.service.js             # Lógica de negocio de tareas
-│
-├── utils/
-│   └── response.js                 # Helper para respuestas estandarizadas
-│
-└── validators/
-    ├── auth.validator.js           # Reglas de validación para auth
-    ├── task.validator.js           # Reglas de validación para tareas
-    └── common.validator.js         # Validadores reutilizables (UUID)
+├── .env.example
+├── .gitignore
+├── package.json
+├── package-lock.json
+└── README.md
 ```
 
-## 📌 Requisitos Previos
+---
 
-- **Node.js** v18 o superior
-- **PostgreSQL** instalado y ejecutándose
-- **npm** (incluido con Node.js)
-
-## 🚀 Instalación
-
-1. **Clonar el repositorio:**
-
-   ```bash
-   git clone https://github.com/javieronishi/taskflow-api.git
-   cd taskflow-api
-   ```
-
-2. **Instalar dependencias:**
-
-   ```bash
-   npm install
-   ```
-
-3. **Configurar variables de entorno:**
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Editar el archivo `.env` con tus credenciales (ver sección [Variables de Entorno](#-variables-de-entorno)).
-
-4. **Crear la base de datos en PostgreSQL:**
-
-   ```sql
-   CREATE DATABASE taskflow_db;
-   ```
-
-5. **Iniciar el servidor en modo desarrollo:**
-
-   ```bash
-   npm run dev
-   ```
-
-   El servidor se ejecutará en `http://localhost:3000` y los modelos se sincronizarán automáticamente con la base de datos.
-
-## 🔐 Variables de Entorno
-
-Crear un archivo `.env` en la raíz del proyecto basándose en `.env.example`:
-
-| Variable         | Descripción                          | Valor por defecto    |
-| ---------------- | ------------------------------------ | -------------------- |
-| `PORT`           | Puerto del servidor                  | `3000`               |
-| `NODE_ENV`       | Entorno de ejecución                 | `development`        |
-| `DB_HOST`        | Host de la base de datos             | `localhost`          |
-| `DB_PORT`        | Puerto de la base de datos           | `5432`               |
-| `DB_NAME`        | Nombre de la base de datos           | -                    |
-| `DB_USER`        | Usuario de la base de datos          | -                    |
-| `DB_PASSWORD`    | Contraseña de la base de datos       | -                    |
-| `JWT_SECRET`     | Clave secreta para firmar tokens JWT | `change_this_secret` |
-| `JWT_EXPIRES_IN` | Tiempo de expiración del token       | `1d`                 |
-| `LOG_LEVEL`      | Nivel de logging (Pino)              | `info`               |
-
-## 📜 Scripts Disponibles
-
-| Script     | Comando            | Descripción                                      |
-| ---------- | ------------------ | ------------------------------------------------ |
-| `dev`      | `npm run dev`      | Inicia el servidor con hot-reload (`--watch`)    |
-| `start`    | `npm start`        | Inicia el servidor en modo producción            |
-| `lint`     | `npm run lint`     | Ejecuta ESLint sobre el código fuente            |
-| `lint:fix` | `npm run lint:fix` | Ejecuta ESLint y corrige errores automáticamente |
-| `format`   | `npm run format`   | Formatea el código con Prettier                  |
-
-## 📡 Endpoints de la API
-
-### Autenticación (`/auth`)
-
-| Método | Ruta             | Descripción                | Autenticación |
-| ------ | ---------------- | -------------------------- | ------------- |
-| `POST` | `/auth/register` | Registrar un nuevo usuario | ❌ No          |
-| `POST` | `/auth/login`    | Iniciar sesión             | ❌ No          |
-
-### Tareas (`/tasks`)
-
-| Método   | Ruta                  | Descripción                    | Autenticación |
-| -------- | --------------------- | ------------------------------ | ------------- |
-| `GET`    | `/tasks`              | Obtener todas las tareas       | ✅ Bearer JWT  |
-| `POST`   | `/tasks`              | Crear una nueva tarea          | ✅ Bearer JWT  |
-| `GET`    | `/tasks/:id`          | Obtener una tarea por ID       | ✅ Bearer JWT  |
-| `PUT`    | `/tasks/:id`          | Actualizar una tarea           | ✅ Bearer JWT  |
-| `DELETE` | `/tasks/:id`          | Eliminar una tarea             | ✅ Bearer JWT  |
-| `PATCH`  | `/tasks/:id/complete` | Marcar una tarea como completa | ✅ Bearer JWT  |
-
-### Otros
-
-| Método | Ruta      | Descripción               |
-| ------ | --------- | ------------------------- |
-| `GET`  | `/`       | Mensaje de bienvenida     |
-| `GET`  | `/health` | Health check del servidor |
-
-### Ejemplos de uso
-
-**Registrar usuario:**
-
-```bash
-curl -X POST http://localhost:3000/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Javier",
-    "email": "javier@example.com",
-    "password": "123456"
-  }'
-```
-
-**Iniciar sesión:**
-
-```bash
-curl -X POST http://localhost:3000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "javier@example.com",
-    "password": "123456"
-  }'
-```
-
-**Crear tarea (autenticado):**
-
-```bash
-curl -X POST http://localhost:3000/tasks \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <tu_token_jwt>" \
-  -d '{
-    "title": "Mi primera tarea",
-    "description": "Descripción de la tarea"
-  }'
-```
-
-## 📖 Documentación Swagger
-
-La documentación interactiva de la API está disponible en:
-
-```
-http://localhost:3000/api-docs
-```
-
-Generada automáticamente con **swagger-jsdoc** a partir de las anotaciones JSDoc en los archivos de rutas.
-
-## 🗄 Modelos de Datos
+## 🗄️ Modelos y relaciones
 
 ### User
 
-| Campo        | Tipo          | Restricciones                |
-| ------------ | ------------- | ---------------------------- |
-| `id`         | `UUID (v4)`   | PK, auto-generado            |
-| `name`       | `STRING(100)` | Requerido                    |
-| `email`      | `STRING(255)` | Requerido, único             |
-| `password`   | `STRING`      | Requerido, hasheado (bcrypt) |
-| `created_at` | `TIMESTAMP`   | Auto-generado                |
-| `updated_at` | `TIMESTAMP`   | Auto-generado                |
+Representa a los usuarios registrados en el sistema.
+
+Principales campos:
+
+- `id`
+- `name`
+- `email`
+- `password`
+- `createdAt`
+- `updatedAt`
+
+### Project
+
+Representa los proyectos pertenecientes a un usuario.
+
+Principales campos:
+
+- `id`
+- `name`
+- `description`
+- `status`
+- `userId`
+- `createdAt`
+- `updatedAt`
+- `deletedAt`
+
+El campo `deletedAt` es utilizado para implementar **Soft Delete** mediante Sequelize.
 
 ### Task
 
-| Campo         | Tipo          | Restricciones              |
-| ------------- | ------------- | -------------------------- |
-| `id`          | `UUID (v4)`   | PK, auto-generado          |
-| `title`       | `STRING(255)` | Requerido                  |
-| `description` | `TEXT`        | Opcional                   |
-| `completed`   | `BOOLEAN`     | Por defecto: `false`       |
-| `user_id`     | `UUID`        | FK → `users.id`, requerido |
-| `created_at`  | `TIMESTAMP`   | Auto-generado              |
-| `updated_at`  | `TIMESTAMP`   | Auto-generado              |
+Representa las tareas pertenecientes a un proyecto.
+
+Principales campos:
+
+- `id`
+- `title`
+- `description`
+- `completed`
+- `projectId`
+- `createdAt`
+- `updatedAt`
 
 ### Relaciones
 
-- Un **User** tiene muchas **Tasks** (1:N)
-- Una **Task** pertenece a un **User**
+```text
+User.hasMany(Project)
+Project.belongsTo(User)
 
-## 👤 Autor
+Project.hasMany(Task)
+Task.belongsTo(Project)
+```
 
-**Javier Onishi Sadud**
+Por lo tanto, las tareas pertenecen directamente a un proyecto y los proyectos pertenecen directamente a un usuario.
 
+---
 
+## 🔐 Autenticación
+
+La API utiliza **JWT (JSON Web Token)** para proteger los endpoints privados.
+
+### Registrar usuario
+
+```http
+POST /auth/register
+```
+
+Body:
+
+```json
+{
+  "name": "Daniel",
+  "email": "daniel@example.com",
+  "password": "123456"
+}
+```
+
+### Iniciar sesión
+
+```http
+POST /auth/login
+```
+
+Body:
+
+```json
+{
+  "email": "daniel@example.com",
+  "password": "123456"
+}
+```
+
+La respuesta proporciona un token JWT que debe utilizarse posteriormente mediante:
+
+```http
+Authorization: Bearer <token>
+```
+
+---
+
+# 📌 Endpoints
+
+## Projects
+
+Todas las rutas de proyectos requieren autenticación.
+
+### Obtener proyectos
+
+```http
+GET /projects
+```
+
+Obtiene los proyectos del usuario autenticado.
+
+### Crear proyecto
+
+```http
+POST /projects
+```
+
+Body:
+
+```json
+{
+  "name": "Mi proyecto",
+  "description": "Descripción del proyecto"
+}
+```
+
+### Obtener proyecto
+
+```http
+GET /projects/:id
+```
+
+Obtiene un proyecto junto con sus tareas relacionadas.
+
+### Actualizar proyecto
+
+```http
+PUT /projects/:id
+```
+
+Body:
+
+```json
+{
+  "name": "Proyecto actualizado",
+  "description": "Nueva descripción",
+  "status": "active"
+}
+```
+
+### Eliminar proyecto
+
+```http
+DELETE /projects/:id
+```
+
+La eliminación utiliza **Soft Delete**, por lo que el registro no se elimina físicamente de la base de datos. Sequelize utiliza el campo `deletedAt` para marcarlo como eliminado.
+
+---
+
+# 📝 Tasks
+
+Todas las rutas de tareas requieren autenticación.
+
+### Obtener tareas de un proyecto
+
+```http
+GET /tasks/:projectId
+```
+
+Permite utilizar paginación mediante:
+
+```text
+?page=1&limit=10
+```
+
+Ejemplo:
+
+```http
+GET /tasks/PROJECT_ID?page=1&limit=10
+```
+
+La respuesta incluye:
+
+```json
+{
+  "items": [],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 0,
+    "totalPages": 0
+  }
+}
+```
+
+### Crear tarea
+
+```http
+POST /tasks/:projectId
+```
+
+Body:
+
+```json
+{
+  "title": "Primera tarea",
+  "description": "Descripción de la tarea"
+}
+```
+
+### Actualizar tarea
+
+```http
+PATCH /tasks/:projectId
+```
+
+Body:
+
+```json
+{
+  "id": "TASK_ID",
+  "title": "Tarea actualizada",
+  "description": "Nueva descripción"
+}
+```
+
+### Eliminar tarea
+
+```http
+DELETE /tasks/:projectId
+```
+
+Body:
+
+```json
+{
+  "id": "TASK_ID"
+}
+```
+
+### Completar tarea
+
+```http
+PATCH /tasks/:projectId/complete
+```
+
+Body:
+
+```json
+{
+  "id": "TASK_ID"
+}
+```
+
+---
+
+# 📄 Swagger
+
+La API cuenta con documentación interactiva mediante Swagger.
+
+En producción:
+
+**https://daniel-flores.onrender.com/api-docs**
+
+Desde Swagger se pueden consultar y probar los endpoints disponibles.
+
+La configuración utiliza diferentes servidores dependiendo del entorno:
+
+```text
+Desarrollo:
+http://localhost:3000
+
+Producción:
+https://daniel-flores.onrender.com
+```
+
+---
+
+# ⚙️ Instalación y ejecución local
+
+## Requisitos
+
+Antes de ejecutar el proyecto se necesita tener instalado:
+
+- Node.js
+- npm
+- PostgreSQL
+
+## 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/TU_USUARIO/taskflow-api-practica.git
+```
+
+Entrar al proyecto:
+
+```bash
+cd taskflow-api-practica
+```
+
+## 2. Instalar dependencias
+
+```bash
+npm install
+```
+
+## 3. Configurar variables de entorno
+
+Crear un archivo `.env` a partir de `.env.example`.
+
+Ejemplo:
+
+```env
+PORT=3000
+NODE_ENV=development
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=taskflow
+DB_USER=postgres
+DB_PASSWORD=TU_PASSWORD
+
+JWT_SECRET=TU_SECRET
+JWT_EXPIRES_IN=1d
+
+LOG_LEVEL=info
+```
+
+> El archivo `.env` no debe subirse al repositorio porque contiene información sensible.
+
+## 4. Ejecutar en desarrollo
+
+```bash
+npm run dev
+```
+
+El servidor estará disponible normalmente en:
+
+```text
+http://localhost:3000
+```
+
+La documentación Swagger estará disponible en:
+
+```text
+http://localhost:3000/api-docs
+```
+
+## 5. Ejecutar en producción
+
+```bash
+npm start
+```
+
+---
+
+# 🧪 Pruebas
+
+La API fue probada mediante Swagger tanto en el entorno local como en el entorno desplegado.
+
+Se verificaron, entre otras, las siguientes funcionalidades:
+
+- Registro de usuarios.
+- Inicio de sesión.
+- Autenticación mediante JWT.
+- Creación de proyectos.
+- Consulta de proyectos.
+- Actualización de proyectos.
+- Eliminación mediante Soft Delete.
+- Creación de tareas.
+- Consulta de tareas.
+- Paginación.
+- Actualización de tareas.
+- Completar tareas.
+- Eliminación de tareas.
+- Relaciones entre usuarios, proyectos y tareas.
+- Funcionamiento de la API en producción.
+
+---
+
+# ☁️ Despliegue
+
+La API se encuentra desplegada utilizando **Render**.
+
+La aplicación utiliza variables de entorno para configurar:
+
+- Conexión a PostgreSQL.
+- Entorno de ejecución.
+- Secretos JWT.
+- Configuración de logs.
+
+La estructura de la base de datos es sincronizada mediante Sequelize al iniciar la aplicación.
+
+---
+
+# 🔒 Seguridad
+
+El proyecto implementa algunas medidas básicas de seguridad:
+
+- Contraseñas almacenadas mediante hash con `bcrypt`.
+- Autenticación mediante JWT.
+- Protección de rutas mediante middleware.
+- Helmet para cabeceras de seguridad.
+- CORS.
+- Validación de datos de entrada.
+- Variables sensibles almacenadas mediante variables de entorno.
+
+---
+
+# 👨‍💻 Autor
+
+**Daniel Flores**
+
+Proyecto desarrollado como parte del **Diplomado de Desarrollo Full Stack — Módulo 4: Desarrollo Backend con Node.js y Express**.
